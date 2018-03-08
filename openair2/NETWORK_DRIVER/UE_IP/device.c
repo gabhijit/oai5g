@@ -28,13 +28,6 @@
 */
 /*******************************************************************************/
 
-#ifndef OAI_NW_DRIVER_USE_NETLINK
-#ifdef RTAI
-#include "rtai_posix.h"
-#define RTAI_IRQ 30 //try to get this irq with RTAI
-#endif // RTAI
-#endif // OAI_NW_DRIVER_USE_NETLINK
-
 #include "constant.h"
 #include "local.h"
 #include "proto_extern.h"
@@ -106,9 +99,21 @@ void *ue_ip_interrupt(void)
 }
 #endif //NETLINK
 //---------------------------------------------------------------------------
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+void ue_ip_timer(struct timer_list *t)
+#else
 void ue_ip_timer(unsigned long dataP)
+#endif
 {
   //---------------------------------------------------------------------------
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,15,0)
+	ue_ip_priv_t *priv_p = from_timer(priv_p, t, timer);
+  	spin_lock(&priv_p->lock);
+	priv_p->timer.function = ue_ip_timer;
+	priv_p->timer.expires = jiffies + UE_IP_TIMER_TICK;
+  	add_timer(&priv_p->timer);
+  	spin_unlock(&priv_p->lock);
+#else
   ue_ip_priv_t *priv_p=(ue_ip_priv_t *)dataP;
   spin_lock(&priv_p->lock);
   (priv_p->timer).function=ue_ip_timer;
@@ -117,6 +122,7 @@ void ue_ip_timer(unsigned long dataP)
   add_timer(&priv_p->timer);
   spin_unlock(&priv_p->lock);
   return;
+#endif
   //  add_timer(&gpriv->timer);
   //  spin_unlock(&gpriv->lock);
 }
@@ -144,11 +150,17 @@ int ue_ip_open(struct net_device *dev_pP)
     netif_wake_queue(dev_pP);
   }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
+  (priv_p->timer).expires   = jiffies+UE_IP_TIMER_TICK;
+  (priv_p->timer).function  = ue_ip_timer;
+  timer_setup(&(priv_p->timer), ue_ip_timer, 0);
+#else
   init_timer(&priv_p->timer);
   (priv_p->timer).expires   = jiffies+UE_IP_TIMER_TICK;
   (priv_p->timer).data      = (unsigned long)priv_p;
   (priv_p->timer).function  = ue_ip_timer;
   //add_timer(&priv_p->timer);
+#endif
 
   printk("[UE_IP_DRV][%s] name = %s\n", __FUNCTION__, dev_pP->name);
   return 0;
@@ -243,7 +255,7 @@ int ue_ip_hard_start_xmit(struct sk_buff *skb_pP, struct net_device *dev_pP)
 
     // End debug information
     netif_stop_queue(dev_pP);
-#if  LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0)
+#if  LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0) || RHEL_RELEASE_CODE >= 1796
     netif_trans_update(dev_pP);
 #else
     dev_pP->trans_start = jiffies;
@@ -319,7 +331,7 @@ void ue_ip_tx_timeout(struct net_device *dev_pP)
   printk("[UE_IP_DRV][%s] begin\n", __FUNCTION__);
   //  (ue_ip_priv_t *)(dev_pP->priv_p)->stats.tx_errors++;
   (priv_p->stats).tx_errors++;
-#if  LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0)
+#if  LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0) || RHEL_RELEASE_CODE >= 1796
   netif_trans_update(dev_pP);
 #else
   dev_pP->trans_start = jiffies;
