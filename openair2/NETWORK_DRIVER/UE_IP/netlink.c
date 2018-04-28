@@ -24,6 +24,9 @@
 * \author Navid Nikaein, Lionel Gauthier,  Raymond knopp
 * \company Eurecom
 * \email: navid.nikaein@eurecom.fr, lionel.gauthier@eurecom.fr, knopp@eurecom.fr
+*
+* \author Abhijit Gadgil
+* \email: gabhijit@iitbombay.org
 */
 
 //#include <linux/config.h>
@@ -49,7 +52,7 @@ Prototypes
 static inline void nasmesh_lock(void);
 static inline void nasmesh_unlock(void);
 static void nas_nl_data_ready (struct sk_buff *skb);
-int ue_ip_netlink_init(void);
+int ue_ip_netlink_init(struct net *ns);
 
 static struct sock *nas_nl_sk = NULL;
 static int exit_netlink_thread=0;
@@ -94,9 +97,12 @@ static void nas_nl_data_ready (struct sk_buff *skb)
 }
 
 
-int ue_ip_netlink_init(void)
+int ue_ip_netlink_init(struct net *ns)
 {
 
+  if (ns == NULL) {
+    ns = &init_net;
+  }
   printk("[UE_IP_DRV][NETLINK] Running init ...\n");
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
@@ -105,7 +111,7 @@ int ue_ip_netlink_init(void)
   cfg.cb_mutex = &nasmesh_mutex;
   cfg.bind     = NULL;
   nas_nl_sk = netlink_kernel_create(
-                &init_net,
+                ns,
                 OAI_IP_DRIVER_NETLINK_ID,
 # if LINUX_VERSION_CODE < KERNEL_VERSION(3,8,0)
                 THIS_MODULE,
@@ -113,7 +119,7 @@ int ue_ip_netlink_init(void)
                 &cfg
 #else /* LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0) */
   nas_nl_sk = netlink_kernel_create(
-                &init_net,
+                ns,
                 OAI_IP_DRIVER_NETLINK_ID,
                 0,
                 nas_nl_data_ready,

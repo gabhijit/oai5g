@@ -25,6 +25,14 @@
 * \company Eurecom
 * \email: raymond.knopp@eurecom.fr, navid.nikaein@eurecom.fr, lionel.gauthier@eurecom.fr
 
+* \author Abhijit Gadgil
+* \email: gabhijit@iitbombay.org
+*
+* Changes:
+* --------
+*  1. Support for Kernel versions 4.15.X and above
+*  2. Support for network namespaces
+
 */
 /*******************************************************************************/
 
@@ -37,6 +45,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
@@ -45,14 +54,18 @@
 #include <asm/delay.h>
 #include <asm/unistd.h>
 #include <linux/netdevice.h>
+#include <linux/sched.h>
 
-
+#define DRV_NAME      "ue_ip"
+#define DRV_VERSION   "1.0"
+#define DRV_COPYRIGHT "- Copyright(c) GNU GPL Eurecom 2013"
+#define DRV_AUTHOR    "Lionel GAUTHIER: <firstname.name@eurecom.fr> "DRV_COPYRIGHT
 
 struct net_device *ue_ip_dev[UE_IP_NB_INSTANCES_MAX];
 
 #ifdef OAI_NW_DRIVER_USE_NETLINK
 extern void ue_ip_netlink_release(void);
-extern int ue_ip_netlink_init(void);
+extern int ue_ip_netlink_init(struct net *ns);
 #endif
 
 //---------------------------------------------------------------------------
@@ -361,6 +374,7 @@ void ue_ip_init(struct net_device *dev_pP)
 {
   //---------------------------------------------------------------------------
   ue_ip_priv_t *priv_p = NULL;
+  struct net *ns = NULL;
 
   if (dev_pP) {
     priv_p = netdev_priv(dev_pP);
@@ -372,6 +386,12 @@ void ue_ip_init(struct net_device *dev_pP)
     dev_pP->flags = IFF_BROADCAST|IFF_MULTICAST|IFF_NOARP;
     dev_pP->tx_queue_len = UE_IP_TX_QUEUE_LEN;
     dev_pP->mtu = UE_IP_MTU;
+
+    ns = get_net_ns_by_pid(current->pid);
+	priv_p->netns = ns;
+
+	dev_pP->features |= NETIF_F_NETNS_LOCAL;
+
   } else {
     printk("[UE_IP_DRV][%s] ERROR, Device is NULL!!\n", __FUNCTION__);
     return;
@@ -383,7 +403,7 @@ int init_module (void)
   //---------------------------------------------------------------------------
   int err,inst;
   char devicename[100];
-
+  struct net *ns = NULL;
 
   // Initialize parameters shared with RRC
   printk("[UE_IP_DRV][%s] Starting OAI IP driver", __FUNCTION__);
@@ -413,8 +433,9 @@ int init_module (void)
   }
 
   printk("[UE_IP_DRV][%s] NETLINK INIT\n", __FUNCTION__);
+  ns = get_net_ns_by_pid(current->pid);
 
-  if ((err=ue_ip_netlink_init()) == -1) {
+  if ((err=ue_ip_netlink_init(ns)) == -1) {
     printk("[UE_IP_DRV][%s] NETLINK failed\n", __FUNCTION__);
   }
 
@@ -446,10 +467,7 @@ void cleanup_module(void)
   printk("[UE_IP_DRV][CLEANUP] end\n");
 }
 
-#define DRV_NAME        "ue_ip"
-#define DRV_VERSION     "1.0"DRV_NAME
-#define DRV_DESCRIPTION "OPENAIR UE IP Device Driver"
-#define DRV_COPYRIGHT   "-Copyright(c) GNU GPL Eurecom 2013"
-#define DRV_AUTHOR      "Lionel GAUTHIER: <firstname.name@eurecom.fr>"DRV_COPYRIGHT
-
+MODULE_DESCRIPTION("OPENAIR UE IP Device Driver");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR(DRV_AUTHOR);
 

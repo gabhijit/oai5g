@@ -27,6 +27,8 @@
                            lionel.gauthier@eurecom.fr
                            knopp@eurecom.fr
 
+	Copyright (c) 2018 Abhijit Gadgil <gabhijit@iitbombay.org>
+
 ***************************************************************************/
 
 #ifndef _UE_IP_PROTO_H
@@ -49,6 +51,7 @@
 #include <linux/icmpv6.h>
 #include <linux/in.h>
 #include <net/ndisc.h>
+#include <net/net_namespace.h>
 
 #include "local.h"
 
@@ -132,7 +135,7 @@ void ue_ip_COMMON_QOS_receive(struct nlmsghdr *nlh);
 // netlink.c
 
 void ue_ip_netlink_release(void);
-int ue_ip_netlink_init(void);
+int ue_ip_netlink_init(struct net *ns);
 
 
 /** @} */

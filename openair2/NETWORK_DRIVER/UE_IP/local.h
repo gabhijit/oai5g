@@ -27,6 +27,8 @@
                           lionel.gauthier@eurecom.fr,
                            knopp@eurecom.fr
 
+    Copyright (C)  2018 Abhijit Gadgil <gabhijit@iitbombay.org>
+
  ***************************************************************************/
 
 #ifndef UE_IP_LOCAL_H
@@ -51,6 +53,7 @@
 #include <linux/in.h>
 #include <net/ndisc.h>
 
+#include <net/net_namespace.h>
 
 
 #include "constant.h"
@@ -71,6 +74,7 @@ typedef struct ue_ip_priv_s {
   uint8_t                    nlmsg[UE_IP_PRIMITIVE_MAX_LENGTH+sizeof(struct nlmsghdr)];
   uint8_t                    xbuffer[UE_IP_PRIMITIVE_MAX_LENGTH]; // transmission buffer
   uint8_t                    rbuffer[UE_IP_PRIMITIVE_MAX_LENGTH]; // reception buffer
+  struct net                *netns;
 } ue_ip_priv_t;
 
 typedef struct ipversion_s {
