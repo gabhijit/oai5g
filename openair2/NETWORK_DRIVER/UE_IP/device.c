@@ -390,6 +390,8 @@ void ue_ip_init(struct net_device *dev_pP)
     ns = get_net_ns_by_pid(current->pid);
 	priv_p->netns = ns;
 
+	dev_net_set(dev_pP, ns);
+
 	dev_pP->features |= NETIF_F_NETNS_LOCAL;
 
   } else {
@@ -432,8 +434,9 @@ int init_module (void)
     }
   }
 
-  printk("[UE_IP_DRV][%s] NETLINK INIT\n", __FUNCTION__);
   ns = get_net_ns_by_pid(current->pid);
+
+  printk("[UE_IP_DRV][%s] NETLINK INIT\n", __FUNCTION__);
 
   if ((err=ue_ip_netlink_init(ns)) == -1) {
     printk("[UE_IP_DRV][%s] NETLINK failed\n", __FUNCTION__);
